@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Multiplayer 7×7 Bingo</title>
+  <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.21.0/firebase-database-compat.js"></script>
+  <style>
+    body { font-family:sans-serif; background:#202020; color:white; text-align:center; }
+    .grid { display:grid; grid-template:repeat(7,1fr)/repeat(7,1fr); gap:2px; max-width:90vw; margin:auto; }
+    .tile { background:#333; padding:10px; min-height:60px; cursor:pointer; transition:0.2s; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Minecraft Bingo (Multiplayer)</h1>
+  <div>
+    <button id="newBoard">New Board</button>
+    <input id="nameIn" placeholder="Your Name"/>
+    <button id="join">Join</button>
+  </div>
+  <div class="grid" id="board"></div>
+ <script>
+window.addEventListener('DOMContentLoaded', () => {
+  // -- Initialize Firebase --
+  const firebaseConfig = {
+  apiKey: "AIzaSyCVbwYkjC1MzYIx2NrSi_Va4byYnxM5sTA",
+  authDomain: "x7bingo-6cc29.firebaseapp.com",
+  databaseURL: "https://x7bingo-6cc29-default-rtdb.firebaseio.com",
+  projectId: "x7bingo-6cc29",
+  storageBucket: "x7bingo-6cc29.firebasestorage.app",
+  messagingSenderId: "947805531049",
+  appId: "1:947805531049:web:be59c5096ef1357a60b2b8",
+  measurementId: "G-REV1VSPQ0K"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // -- Task pool (~200 tasks) --
+const pool = [
+  "Craft a Stone Pickaxe", "Craft a Diamond Pickaxe", "Craft a Bow", "Craft a Shield", "Craft a Bucket", "Craft a Furnace",
+  "Craft Shears", "Craft a Cake", "Craft a Compass", "Craft a Clock", "Craft a Book", "Craft TNT", "Craft a Golden Apple",
+  "Craft a Map", "Craft a Fire Charge", "Craft a Hopper", "Craft a Dispenser", "Craft a Smithing Table", "Craft a Grindstone",
+  "Craft a Fletching Table", "Craft a Campfire", "Craft a Crossbow", "Craft a Fishing Rod", "Craft a Lantern", "Craft a Lectern",
+  "Craft a Target Block", "Craft a Blast Furnace", "Craft a Smoker", "Craft a Honey Block", "Craft a Lead", "Craft a Painting",
+  "Craft a Flower Pot", "Craft a Redstone Torch", "Craft a Note Block", "Craft a Piston", "Craft 8 Types of Door",
+  "Eat a Golden Apple", "Eat a Suspicious Stew", "Eat Raw Chicken", "Eat Rotten Flesh", "Eat a Rabbit Stew", "Eat Sweet Berries",
+  "Fish a Cod", "Fish a Salmon", "Catch a Pufferfish", "Fish a Treasure Item", "Fish 5 Items", "Revive a Dried Ghast", 
+  "Build a Nether Portal", "Visit the Nether", "Mine Nether Quartz", "Mine Soul Sand", "Mine Glowstone", "Collect a Magma Block",
+  "Trade with a Villager", "Trade with a Wandering Trader", "Cure a Zombie Villager", "Ring a Bell Near a Villager", "Trigger a Raid",
+  "Find an Abandoned Village", "Find a Plains Village", "Find a Desert Village", "Find a Taiga Village", "Summon a Warden",
+  "Tame a Cat", "Tame a Dog", "Tame a Horse", "Ride a Pig", "Ride a Strider", "Ride a Minecart", "Breed Chickens", "Breed Cows",
+  "Breed Pigs", "Breed Sheep", "Breed Horses", "Breed Cats", "Breed Dogs", "Breed Rabbits", "Mine a Diamond", " Collect 8 Different Flowers",
+  "Milk a Cow", "Shear a Sheep", "Shear a Snow Golem", "Use a Brush on Suspicious Sand", "Use a Spyglass", "Use a Totem of Undying",
+  "Use a Smithing Table", "Use a Cartography Table", "Use a Brewing Stand", "Use a Grindstone", "Use a Stonecutter",
+  "Find a Jungle Biome", "Find a Desert Biome", "Find a Swamp", "Find a Taiga", "Find a Mountain Biome", "Find a Cherry Grove",
+  "Find a Lush Cave", "Find a Dripstone Cave", "Find a Deep Dark Biome", "Find a Mangrove Swamp", "Find a Frozen Ocean",
+  "Find a Mushroom Island", "Find a Badlands", "Find a Savanna", "Find a Bamboo Jungle", "Find a Flower Forest",
+  "Find a Shipwreck", "Find a Buried Treasure", "Find an Ocean Monument", "Find a Desert Temple", "Find a Jungle Temple",
+  "Find a Fossil", "Find a Bastion", "Find a Fortress", "Find a Ruined Portal", "Find a Woodland Mansion", "Find a Witch Hut",
+  "Find a Stronghold", "Find an End Portal Room", "Kill a Witch", "Kill a Spider", "Kill a Creeper", "Kill a Skeleton",
+  "Kill a Zombie", "Kill a Slime", "Kill a Drowned", "Kill a Ghast", "Kill a Magma Cube", "Kill a Blaze", "Kill a Hoglin",
+  "Kill a Piglin", "Kill an Enderman", "Kill a Vindicator", "Kill a Pillager", "Die to Fall Damage", "Die to lava", "Mine an Emerald",
+  "Kill a Shulker", "Kill a Silverfish", "Kill a Fish by Hand", "Kill a Mob Using Lava", "Kill a Mob With a Bow", "Kill a Mob in Water",
+  "Deflect an Arrow with a Shield", "Obtain Dolphin's Grace", "Kill a Hostile Mob with 2 Hearts or Less", "Reach Level 20",
+  "Fall Into Powdered Snow", "Get Poisoned", "Walk on Soul Sand", "Stand on Honey", "Walk on a Campfire", "Trigger a Sculk Shrieker",
+  "Survive a Creeper Blast", "Set Yourself on Fire (Safely)", "Use a Potion", "Brew a Potion", "Make a Splash Potion",
+  "Use a Fire Resistance Potion", "Use a Water Breathing Potion", "Use a Bucket of Axolotl", "Upgrade a Villager to Master Level",
+  "Place a Lightning Rod", "Place a Block of Emerald", "Place a Lodestone", "Equip a Dog with Armor", "Use an Enchanting Table",
+  "Use a Lodestone Compass", "Use a Brush", "Use a Name Tag", "Get a Music Disc", "Play a Music Disc", "Get a Banner Pattern",
+  "Craft a Banner", "Craft a Colored Bed", "Dye Leather Armor", "Get 10 Wool Colors", "Get 10 Terracota Colors", "Create a Simple Redstone Circuit",
+  "Sleep in a Desert Temple", "Sleep in a Village", "Use a Boat on Ice", "Use a Boat on Lava (Strider)",
+  "Shoot a Ghast Fireball", "Shoot a Target Block", "Hit a Mob with a Snowball", "Hit Yourself with a Firework", "Jump with a Slime Block",
+  "Get an Ender Pearl", "Obtain 10 Concrete Colors", "Obtain 12 Types of Stairs", "Use an Anvil",
+  "Ride a Horse with a Saddle", "Collect Honeycomb", "Collect Honey Bottle", "Get a Goat Horn", "Get a Trident", "Get a Heart of the Sea",
+  "Mine Deepslate Coal Ore", "Mine a Block of Copper", "Wax a Copper Block", "Die from Drowning",
+  "Scrape Wax Off a Copper Block", "Oxidize Copper", "Catch a Tropical Fish", "Place a Flower in Every Slot of a Flower Pot",
+  "Place Armor on an Armor Stand", "Set a Respawn Anchor", "Build a Snow Golem", "Build an Iron Golem", "Grow a Giant Mushroom",
+  "Grow a Tree Underground", "Climb to Y=320", "Dig to Y=-64"
+];
+
+  // -- Helper to shuffle & pick 49 --
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;}
+  function newBoard() {
+    const tasks = shuffle(pool).slice(0,49);
+    db.ref('board').set({tasks, cells:{}});
+  }
+
+  // -- Player setup --
+  let playerId = null, playerColor = null;
+  const joinBtn = document.getElementById('join');
+  joinBtn.onclick = () => {
+    const name = document.getElementById('nameIn').value.trim() || 'Anon';
+    joinBtn.onclick = () => {
+  const name = document.getElementById('nameIn').value.trim() || 'Anon';
+  playerColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+  const ref = db.ref('players').push();
+  playerId = ref.key;
+  ref.set({ name, color: playerColor });
+  db.ref('board/cells/' + i).set(playerColor);
+  };
+
+  // -- Subscribe: render board and clicks --
+  db.ref('board').on('value', snap => {
+    const data = snap.val();
+    const grid = document.getElementById('board');
+    grid.innerHTML = '';
+    if(!data) return;
+    db.ref('board').on('value', snap => {
+  const data = snap.val();
+  const grid = document.getElementById('board');
+  grid.innerHTML = '';
+  if (!data || !data.tasks) return;
+
+  data.tasks.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'tile';
+    div.textContent = t;
+    const owner = data.cells?.[i];
+    if (owner) div.style.background = owner;
+    div.onclick = () => {
+      if (!playerColor) return alert('Join first!');
+      db.ref('board/cells/' + i).set(playerColor);
+    };
+    grid.append(div);
+  });
+});
+      div.className = 'tile';
+      div.textContent = t;
+      const owner = data.cells[i];
+      if(owner) div.style.background = owner;
+      div.onclick = () => {
+  if (!playerColor) return alert('Join first!');
+  const currentColor = data.cells?.[i];
+  const ref = db.ref('board/cells/' + i);
+  if (!currentColor) {
+    // Unclaimed — claim it
+    ref.set(playerColor);
+  } else if (currentColor === playerColor) {
+    // Claimed by this player — unclaim it
+    ref.set("#333333")   ;
+
+  }
+};
+      grid.append(div);
+    });
+  };
+
+  // -- New board button --
+  document.getElementById('newBoard').onclick = () => {
+    if(confirm('Generate new board? This clears all marks.')) newBoard();
+  };
+});
+</script>
+</body>
+</html>
